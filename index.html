@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Knight Moves</title>
+<style>
+  :root{
+    --bg:#1c1a17;
+    --panel:#272320;
+    --ink:#ede4d3;
+    --muted:#a89a83;
+    --light:#e9d8b4;
+    --dark:#8a6a43;
+    --line:#3a342d;
+    --gold:#d9a441;
+    --gold-soft:#7a5e2c;
+    --green:#6f8f4e;
+    --green-soft:#3c4a2c;
+    --anchor:#c8553d;
+    --legal:#4f7a8a;
+    --shadow:rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{background:var(--bg);color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;}
+  body{min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    padding:18px 14px 40px;gap:18px;}
+  header{text-align:center;}
+  h1{font-size:clamp(26px,7vw,40px);letter-spacing:.04em;font-weight:600;
+    background:linear-gradient(180deg,#f3e6c8,#d9a441);-webkit-background-clip:text;
+    background-clip:text;-webkit-text-fill-color:transparent;}
+  .sub{color:var(--muted);font-size:14px;margin-top:4px;font-style:italic;}
+
+  .status{min-height:24px;font-size:15px;color:var(--gold);text-align:center;
+    letter-spacing:.02em;transition:color .2s;}
+  .status.warn{color:var(--anchor);}
+  .status.win{color:var(--green);font-size:18px;}
+
+  /* Board */
+  .board-wrap{position:relative;padding:26px;border-radius:10px;
+    background:linear-gradient(145deg,#3a2f22,#241c14);
+    box-shadow:0 10px 30px var(--shadow), inset 0 0 0 2px #4a3a26;}
+  .coord-top,.coord-bottom{display:grid;grid-template-columns:repeat(8,1fr);
+    position:absolute;left:26px;right:26px;font-size:11px;color:#cdb98c;
+    text-align:center;font-family:ui-monospace,monospace;}
+  .coord-top{top:9px;} .coord-bottom{bottom:9px;}
+  .coord-left,.coord-right{display:grid;grid-template-rows:repeat(8,1fr);
+    position:absolute;top:26px;bottom:26px;font-size:11px;color:#cdb98c;
+    align-items:center;font-family:ui-monospace,monospace;width:14px;text-align:center;}
+  .coord-left{left:7px;} .coord-right{right:7px;}
+
+  #board{display:grid;grid-template-columns:repeat(8,1fr);
+    grid-template-rows:repeat(8,1fr);
+    width:min(92vw,520px);aspect-ratio:1;border:2px solid #4a3a26;}
+  .sq{position:relative;display:flex;align-items:center;justify-content:center;
+    font-size:clamp(15px,4.2vw,23px);font-weight:700;cursor:pointer;
+    user-select:none;transition:background .12s,box-shadow .12s;}
+  .sq.light{background:var(--light);color:#5a4326;}
+  .sq.dark{background:var(--dark);color:#f3e6c8;}
+  .sq.anchor{color:#1d4ed8;text-shadow:0 1px 2px rgba(255,255,255,.6);}
+  .sq.anchor::after{content:"";position:absolute;inset:8%;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#e8745c,var(--anchor));
+    z-index:-1;box-shadow:0 1px 3px rgba(0,0,0,.4);}
+  .sq.filled{color:#1d4ed8;text-shadow:0 1px 2px rgba(255,255,255,.6);}
+  .sq.dark.anchor,.sq.dark.filled{color:#f2c744;}
+  .sq.filled::after{content:"";position:absolute;inset:8%;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#8fae6b,var(--green));
+    z-index:-1;box-shadow:0 1px 3px rgba(0,0,0,.4);}
+  .sq.legal{box-shadow:inset 0 0 0 3px var(--legal);}
+  .sq.legal::before{content:"";position:absolute;width:26%;height:26%;
+    border-radius:50%;background:rgba(79,122,138,.55);}
+  .sq.legal.filled::before,.sq.legal.anchor::before{display:none;}
+  .sq.current{box-shadow:inset 0 0 0 3px var(--gold);}
+  .knight{position:absolute;font-size:clamp(20px,5.5vw,34px);line-height:1;
+    z-index:2;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));
+    color:#1c1a17;transition:transform .28s cubic-bezier(.5,0,.3,1);}
+
+  /* Controls */
+  .controls{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;
+    width:min(92vw,520px);}
+  button{font-family:inherit;font-size:15px;letter-spacing:.03em;cursor:pointer;
+    padding:13px 10px;border-radius:8px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink);transition:transform .08s,background .15s,border-color .15s;}
+  button:hover{background:#322c26;border-color:var(--gold-soft);}
+  button:active{transform:translateY(1px);}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  button .lab{display:block;font-size:11px;color:var(--muted);margin-top:2px;
+    font-style:italic;letter-spacing:0;}
+  button.primary{background:linear-gradient(180deg,#2f6a4a,#234e36);
+    border-color:#3c7a55;color:#eafff0;}
+  button.primary:hover{background:linear-gradient(180deg,#357a55,#2a5c40);}
+  button.gold{background:linear-gradient(180deg,#9a7327,#7a5e2c);
+    border-color:var(--gold);color:#fff6e0;}
+
+  .meta{display:flex;gap:18px;font-size:13px;color:var(--muted);
+    justify-content:center;flex-wrap:wrap;}
+  .meta b{color:var(--ink);font-weight:600;}
+
+  footer{color:#5e564a;font-size:12px;text-align:center;margin-top:6px;}
+  @media (prefers-reduced-motion:reduce){
+    .knight{transition:none;} .sq{transition:none;}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Knight Moves</h1>
+    <div class="sub">A knight's tour — number every square, one to sixty-four.</div>
+  </header>
+
+  <div class="meta">
+    <span>Placed: <b id="count">0</b> / 64</span>
+    <span>Anchors: <b id="anchorInfo">—</b></span>
+  </div>
+
+  <div class="status" id="status">Press “New numbers” to begin.</div>
+
+  <div class="board-wrap">
+    <div class="coord-top" id="ctop"></div>
+    <div class="coord-bottom" id="cbot"></div>
+    <div class="coord-left" id="cleft"></div>
+    <div class="coord-right" id="cright"></div>
+    <div id="board"></div>
+  </div>
+
+  <div class="controls">
+    <button id="btnNew" class="gold">New numbers<span class="lab">two random anchors</span></button>
+    <button id="btnPlay" class="primary">Play<span class="lab">move as a knight</span></button>
+    <button id="btnClear">Clear<span class="lab">reset to the 2 anchors</span></button>
+    <button id="btnSolve">Solve<span class="lab">watch Claude play</span></button>
+  </div>
+
+  <footer>Tap an anchor or a highlighted square. The knight moves in its L-shape.</footer>
+
+<script>
+(()=>{
+  "use strict";
+  const N=8;
+  const board=document.getElementById('board');
+  const statusEl=document.getElementById('status');
+  const countEl=document.getElementById('count');
+  const anchorInfoEl=document.getElementById('anchorInfo');
+  const btnNew=document.getElementById('btnNew');
+  const btnPlay=document.getElementById('btnPlay');
+  const btnClear=document.getElementById('btnClear');
+  const btnSolve=document.getElementById('btnSolve');
+
+  const FILES="ABCDEFGH";
+  // coordinate labels
+  function fillCoords(){
+    const top=document.getElementById('ctop'),bot=document.getElementById('cbot');
+    const left=document.getElementById('cleft'),right=document.getElementById('cright');
+    for(let i=0;i<8;i++){
+      top.insertAdjacentHTML('beforeend',`<span>${FILES[i]}</span>`);
+      bot.insertAdjacentHTML('beforeend',`<span>${FILES[i]}</span>`);
+    }
+    for(let r=0;r<8;r++){
+      left.insertAdjacentHTML('beforeend',`<span>${8-r}</span>`);
+      right.insertAdjacentHTML('beforeend',`<span>${8-r}</span>`);
+    }
+  }
+  fillCoords();
+
+  // squares: index 0..63, row 0 = top (rank 8)
+  const cells=[];
+  for(let i=0;i<64;i++){
+    const r=Math.floor(i/8), c=i%8;
+    const sq=document.createElement('div');
+    sq.className='sq '+(((r+c)%2===0)?'light':'dark');
+    sq.dataset.i=i;
+    sq.addEventListener('click',()=>onSquare(i));
+    board.appendChild(sq);
+    cells.push(sq);
+  }
+
+  // knight move offsets
+  const KM=[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+  function neighbors(i){
+    const r=Math.floor(i/8),c=i%8,out=[];
+    for(const [dr,dc] of KM){
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<8&&nc>=0&&nc<8) out.push(nr*8+nc);
+    }
+    return out;
+  }
+
+  // ---- generate a full knight's tour via Warnsdorff with backtracking ----
+  function generateTour(){
+    for(let attempt=0;attempt<300;attempt++){
+      const start=Math.floor(Math.random()*64);
+      const path=warnsdorff(start);
+      if(path) return path; // path[step]=squareIndex, length 64
+    }
+    return warnsdorffBacktrack(0); // guaranteed fallback
+  }
+  function warnsdorff(start){
+    const visited=new Array(64).fill(false);
+    const path=[start]; visited[start]=true;
+    for(let step=1;step<64;step++){
+      const cur=path[path.length-1];
+      let best=[],bestDeg=99;
+      for(const nb of neighbors(cur)){
+        if(visited[nb]) continue;
+        let deg=0;
+        for(const nn of neighbors(nb)) if(!visited[nn]) deg++;
+        if(deg<bestDeg){bestDeg=deg;best=[nb];}
+        else if(deg===bestDeg) best.push(nb);
+      }
+      if(best.length===0) return null;
+      const pick=best[Math.floor(Math.random()*best.length)];
+      visited[pick]=true; path.push(pick);
+    }
+    return path;
+  }
+  function warnsdorffBacktrack(start){
+    const visited=new Array(64).fill(false);
+    const path=[];
+    function dfs(cur){
+      visited[cur]=true; path.push(cur);
+      if(path.length===64) return true;
+      const opts=neighbors(cur).filter(n=>!visited[n]).map(n=>{
+        let d=0; for(const nn of neighbors(n)) if(!visited[nn]) d++;
+        return [d,n];
+      }).sort((a,b)=>a[0]-b[0]);
+      for(const [,n] of opts){ if(dfs(n)) return true; }
+      visited[cur]=false; path.pop(); return false;
+    }
+    dfs(start);
+    return path;
+  }
+
+  // ---- state ----
+  let tour=[];            // the canonical solution
+  let squareToNumber=[];  // squareToNumber[sq] = its number 1..64 in the tour
+  let numberToSquare=[];  // numberToSquare[n]   = square index for number n
+  let anchorA=0,anchorB=0;// the two revealed numbers
+  let placed=new Array(64).fill(0); // placed[sq]=number written there (0 empty)
+  let playing=false;      // play mode active
+  let selSquare=-1;       // currently selected square (the end you're extending from)
+  let solving=false;
+  let knightEl=null;
+
+  function newGame(){
+    solving=false; playing=false;
+    tour=generateTour();
+    squareToNumber=new Array(64).fill(0);
+    numberToSquare=new Array(65).fill(-1);
+    tour.forEach((sq,idx)=>{ squareToNumber[sq]=idx+1; numberToSquare[idx+1]=sq; });
+    // pick two distinct anchor numbers
+    let a=1+Math.floor(Math.random()*64), b;
+    do{ b=1+Math.floor(Math.random()*64);}while(b===a);
+    anchorA=Math.min(a,b); anchorB=Math.max(a,b);
+    resetToAnchors();
+    anchorInfoEl.textContent=`${anchorA} & ${anchorB}`;
+    setStatus(`Anchors ${anchorA} and ${anchorB} placed. Press Play to start, or Solve to watch.`);
+  }
+
+  function resetToAnchors(){
+    solving=false; playing=false; selSquare=-1;
+    placed=new Array(64).fill(0);
+    placed[numberToSquare[anchorA]]=anchorA;
+    placed[numberToSquare[anchorB]]=anchorB;
+    if(knightEl){knightEl.remove();knightEl=null;}
+    btnPlay.disabled=false; btnSolve.disabled=false;
+    render();
+  }
+
+  function setStatus(msg,cls=''){ statusEl.textContent=msg; statusEl.className='status '+cls; }
+
+  function render(){
+    let n=0;
+    cells.forEach((sq,i)=>{
+      sq.className='sq '+(((Math.floor(i/8)+i%8)%2===0)?'light':'dark');
+      sq.textContent='';
+      const val=placed[i];
+      if(val){
+        n++;
+        sq.textContent=val;
+        if(val===anchorA||val===anchorB) sq.classList.add('anchor');
+        else sq.classList.add('filled');
+      }
+    });
+    countEl.textContent=n;
+    // highlight legal extensions from the selected number
+    if(playing && selSquare>=0){
+      cells[selSquare].classList.add('current');
+      for(const t of legalTargets(selSquare)){
+        cells[t].classList.add('legal');
+      }
+    }
+    placeKnight();
+  }
+
+  // which empty squares can be filled by extending from the number on `sq`?
+  function legalTargets(sq){
+    const n=placed[sq];
+    if(!n) return [];
+    const wantUp=(n+1<=64 && numberFree(n+1));
+    const wantDn=(n-1>=1  && numberFree(n-1));
+    if(!wantUp && !wantDn) return [];
+    return neighbors(sq).filter(t=>!placed[t]);
+  }
+  // is number m not yet on the board?
+  function numberFree(m){
+    return !placed.some(v=>v===m);
+  }
+
+  function placeKnight(){
+    if(selSquare<0){ if(knightEl){knightEl.remove();knightEl=null;} return; }
+    if(!knightEl){
+      knightEl=document.createElement('div');
+      knightEl.className='knight'; knightEl.textContent='♞';
+      board.appendChild(knightEl);
+    }
+    const sq=cells[selSquare];
+    knightEl.style.left=sq.offsetLeft+'px';
+    knightEl.style.top=sq.offsetTop+'px';
+    knightEl.style.width=sq.offsetWidth+'px';
+    knightEl.style.height=sq.offsetHeight+'px';
+    knightEl.style.display='flex';
+    knightEl.style.alignItems='center';
+    knightEl.style.justifyContent='center';
+  }
+
+  // ---- Play mode ----
+  function startPlay(){
+    if(!tour.length){ newGame(); }
+    resetToAnchors();
+    playing=true;
+    // auto-select the lower anchor as the starting end
+    selSquare=numberToSquare[anchorA];
+    render();
+    setStatus(`Selected ${anchorA}. Tap a highlighted square to place ${nextLabel(numberToSquare[anchorA])}, or tap anchor ${anchorB} to build from there.`,'');
+  }
+
+  // human-readable description of what tapping a target will place, from square sq
+  function nextLabel(sq){
+    const n=placed[sq];
+    const up=(n+1<=64 && numberFree(n+1));
+    const dn=(n-1>=1  && numberFree(n-1));
+    if(up && dn) return `${n-1} or ${n+1}`;
+    if(up) return `${n+1}`;
+    if(dn) return `${n-1}`;
+    return `nothing (this end is closed)`;
+  }
+
+  function onSquare(i){
+    if(!playing||solving) return;
+
+    // Tapping a placed number selects it as the end to extend from
+    if(placed[i]){
+      if(legalTargets(i).length===0){
+        selSquare=i; render();
+        setStatus(`Number ${placed[i]} can't extend — both neighbours are already placed. Pick another number.`,'warn');
+        return;
+      }
+      selSquare=i; render();
+      setStatus(`Selected ${placed[i]}. Tap a highlighted square to place ${nextLabel(i)}.`,'');
+      return;
+    }
+
+    // Tapping an empty square: must have a selection, and the square must be a legal target
+    if(selSquare<0){
+      setStatus(`First tap a number on the board, then tap a highlighted square next to it.`,'warn');
+      return;
+    }
+    if(!legalTargets(selSquare).includes(i)){
+      setStatus(`Not a knight move from ${placed[selSquare]}. Tap a highlighted square.`,'warn');
+      return;
+    }
+
+    // decide which number to place: prefer extending upward, else downward
+    const n=placed[selSquare];
+    let toPlace;
+    if(n+1<=64 && numberFree(n+1)) toPlace=n+1;
+    else if(n-1>=1 && numberFree(n-1)) toPlace=n-1;
+    else { setStatus(`This end is closed.`,'warn'); return; }
+
+    placed[i]=toPlace;
+    selSquare=i;          // knight hops to the new square; keep extending from here
+    render();
+
+    // chain auto-join: if the new number sits next to an already-placed neighbour
+    // in sequence, the chains simply merge — nothing special needed since we track by value.
+
+    if(placed.every(v=>v>0)){
+      playing=false;
+      setStatus(`🏆 Complete tour! Every square numbered 1–64. Beautifully done.`,'win');
+      cells.forEach(c=>c.classList.remove('legal','current'));
+      placeKnight();
+      return;
+    }
+
+    const nl=nextLabel(i);
+    if(nl.startsWith('nothing')){
+      setStatus(`Placed ${toPlace}. This end is now closed — tap another number to keep building.`,'');
+    } else {
+      setStatus(`Placed ${toPlace}. Tap a highlighted square to place ${nl}, or tap another number.`,'');
+    }
+  }
+
+  // ---- Solve (animated) ----
+  let solveTimer=null;
+  function solve(){
+    resetToAnchors();
+    solving=true; playing=false;
+    btnPlay.disabled=true;
+    setStatus(`Claude is playing the tour…`,'');
+    let step=0;
+    const order=tour; // square sequence in tour order
+    selSquare=-1;
+    const reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    const delay=reduce?40:230;
+    function tick(){
+      if(step>=64){
+        solving=false; btnPlay.disabled=false;
+        cells.forEach(c=>c.classList.remove('legal','current'));
+        placeKnight();
+        setStatus(`🏆 Solved. That's one valid knight's tour through your anchors.`,'win');
+        return;
+      }
+      const sq=order[step];
+      placed[sq]=step+1;
+      selSquare=sq;
+      cells.forEach((c,i)=>{
+        c.className='sq '+(((Math.floor(i/8)+i%8)%2===0)?'light':'dark');
+        const v=placed[i]; c.textContent=v?v:'';
+        if(v){ (v===anchorA||v===anchorB)?c.classList.add('anchor'):c.classList.add('filled'); }
+      });
+      cells[selSquare].classList.add('current');
+      countEl.textContent=step+1;
+      placeKnight();
+      step++;
+      solveTimer=setTimeout(tick,delay);
+    }
+    tick();
+  }
+
+  // ---- wire buttons ----
+  btnNew.addEventListener('click',()=>{ if(solveTimer)clearTimeout(solveTimer); newGame(); });
+  btnPlay.addEventListener('click',()=>{ if(solveTimer)clearTimeout(solveTimer); startPlay(); });
+  btnClear.addEventListener('click',()=>{ if(solveTimer)clearTimeout(solveTimer);
+    if(!tour.length){newGame();return;} resetToAnchors();
+    setStatus(`Cleared. Back to the two anchors ${anchorA} & ${anchorB}.`,''); });
+  btnSolve.addEventListener('click',()=>{ if(solveTimer)clearTimeout(solveTimer);
+    if(!tour.length){newGame();} solve(); });
+
+  window.addEventListener('resize',()=>placeKnight());
+
+  // start
+  newGame();
+})();
+</script>
+</body>
+</html>
